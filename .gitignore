@@ -1,0 +1,11 @@
+/dist
+/data
+/.dvc
+/Dog_env
+/dog_model
+/LabDL.ipynb
+/__pycache__
+/Dogs_predictions.csv
+/label_encoder.pkl
+/dog_data.zip
+/test_lab2_dl_5.py
