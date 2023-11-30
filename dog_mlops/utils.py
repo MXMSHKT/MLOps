@@ -1,9 +1,10 @@
 import torch
-from torch.optim import lr_scheduler
-from torch.utils.data import DataLoader
 import torch.nn as nn
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+
+# from torch.optim import lr_scheduler
 
 # Check GPU availability
 
@@ -11,10 +12,11 @@ train_on_gpu = torch.cuda.is_available()
 
 if train_on_gpu:
     DEVICE = torch.device("cuda")
-    print('CUDA is available! Training on GPU...')
+    print("CUDA is available! Training on GPU...")
 else:
     DEVICE = torch.device("cpu")
-    print('CUDA is not available. Training on CPU...')
+    print("CUDA is not available. Training on CPU...")
+
 
 def fit_epoch(model, train_loader, criterion, optimizer):
     model.train()
@@ -76,20 +78,30 @@ def train(train_files, val_files, model, epochs, batch_size):
         opt = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
         criterion = nn.CrossEntropyLoss()
         # Добавил шедулер
-        lr_sched = lr_scheduler.StepLR(opt, step_size=3, gamma=0.5)
-        
+        # lr_sched = lr_scheduler.StepLR(opt, step_size=3, gamma=0.5)
+
         for epoch in range(epochs):
-            train_loss, train_acc = fit_epoch(model, train_loader, criterion, opt)
+            train_loss, train_acc = fit_epoch(
+                model, train_loader, criterion, opt
+            )
             print("loss", train_loss)
 
             val_loss, val_acc = eval_epoch(model, val_loader, criterion)
             history.append((train_loss, train_acc, val_loss, val_acc))
 
             pbar_outer.update(1)
-            tqdm.write(log_template.format(ep=epoch + 1, t_loss=train_loss, \
-                                           v_loss=val_loss, t_acc=train_acc, v_acc=val_acc))
+            tqdm.write(
+                log_template.format(
+                    ep=epoch + 1,
+                    t_loss=train_loss,
+                    v_loss=val_loss,
+                    t_acc=train_acc,
+                    v_acc=val_acc,
+                )
+            )
 
-    return history
+    # return history
+
 
 def predict(model, test_loader):
     with torch.no_grad():
@@ -103,4 +115,3 @@ def predict(model, test_loader):
 
     probs = nn.functional.softmax(torch.cat(logits), dim=-1).numpy()
     return probs
-

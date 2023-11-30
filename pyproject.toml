@@ -14,11 +14,24 @@ pre-commit = "^3.5.0"
 
 
 [tool.black]
-line-length = 90
-target-version = ["py39"]
+line-length = 79
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
 
 [tool.isort]
-src_paths = ["./"]
+src_paths = ["dog_mlops"]
 profile = "black"
 line_length = 90
 lines_after_imports = 2
