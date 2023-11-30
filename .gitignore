@@ -1,6 +1,5 @@
 /dist
 /data
-/.dvc
 /dog_env
 /dog_model
 /LabDL.ipynb
