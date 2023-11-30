@@ -1,31 +1,31 @@
-import torch
-import pickle
-import numpy as np
-from torchvision import transforms
-from PIL import Image
-from pathlib import Path
-from torchvision.models import resnet18, ResNet18_Weights
-from sklearn.metrics import f1_score
-from utils import train, predict, DEVICE
-from sklearn.model_selection import train_test_split
-import random
-from sklearn.preprocessing import LabelEncoder
-
-from torch.utils.data import Dataset
-import torch.nn as nn
 import os
-from tqdm import tqdm
+import pickle
+import random
+from pathlib import Path
+
+import numpy as np
+import torch
+import torch.nn as nn
+from PIL import Image
+from sklearn.metrics import f1_score
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from torch.utils.data import Dataset
+from torchvision import transforms
+from torchvision.models import ResNet18_Weights, resnet18
+
+from utils import DEVICE, predict, train
 
 
 # Constants
-DATA_MODES = ['train', 'val', 'test']
+DATA_MODES = ["train", "val", "test"]
 RESCALE_SIZE = 224
 BATCH_SIZE = 64
 NUM_EPOCHS = 5
-MODEL_DIR = Path('dog_model')
+MODEL_DIR = Path("dog_model")
 
 # Create train and validation datasets
-TRAIN_DIR = Path('data/train')
+TRAIN_DIR = Path("data/train")
 
 
 # Define a DogDataset class
@@ -37,13 +37,15 @@ class DogDataset(Dataset):
         self.label_encoder = LabelEncoder()
 
         if self.mode not in DATA_MODES:
-            raise NameError(f"{self.mode} is not correct; correct modes: {DATA_MODES}")
+            raise NameError(
+                f"{self.mode} is not correct; correct modes: {DATA_MODES}"
+            )
 
-        if self.mode != 'test':
+        if self.mode != "test":
             self.labels = [path.parent.name for path in self.files]
             self.label_encoder.fit(self.labels)
 
-            with open('label_encoder.pkl', 'wb') as le_dump_file:
+            with open("label_encoder.pkl", "wb") as le_dump_file:
                 pickle.dump(self.label_encoder, le_dump_file)
 
     def __len__(self):
@@ -55,27 +57,35 @@ class DogDataset(Dataset):
         return image
 
     def __getitem__(self, index):
-        train_transform = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.RandomHorizontalFlip(p=0.5),
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-        ])
+        train_transform = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.RandomHorizontalFlip(p=0.5),
+                transforms.Normalize(
+                    [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
+                ),
+            ]
+        )
 
-        val_transform = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-        ])
+        val_transform = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
+                ),
+            ]
+        )
 
         x = self.load_sample(self.files[index])
         x = self._prepare_sample(x)
-        x = np.array(x / 255, dtype='float32')
+        x = np.array(x / 255, dtype="float32")
 
-        if self.mode == 'train':
+        if self.mode == "train":
             x = train_transform(x)
         else:
             x = val_transform(x)
 
-        if self.mode == 'test':
+        if self.mode == "test":
             return x
         else:
             label = self.labels[index]
@@ -86,7 +96,7 @@ class DogDataset(Dataset):
     def _prepare_sample(self, image):
         image = image.resize((RESCALE_SIZE, RESCALE_SIZE))
         return np.array(image)
-    
+
 
 def set_seed(seed) -> None:
     np.random.seed(seed)
@@ -100,24 +110,19 @@ def set_seed(seed) -> None:
     os.environ["PYTHONHASHSEED"] = str(seed)
 
 
-
 def main():
-        # Check GPU availability
+    # Check GPU availability
     set_seed(64)
-    train_on_gpu = torch.cuda.is_available()
 
-    if train_on_gpu:
-        DEVICE = torch.device("cuda")
-    else:
-        DEVICE = torch.device("cpu")
-
-    train_val_files = sorted(list(TRAIN_DIR.rglob('*.jpeg')))
+    train_val_files = sorted(list(TRAIN_DIR.rglob("*.jpeg")))
 
     train_val_labels = [path.parent.name for path in train_val_files]
-    train_files, val_files = train_test_split(train_val_files, test_size=0.25, stratify=train_val_labels)
+    train_files, val_files = train_test_split(
+        train_val_files, test_size=0.25, stratify=train_val_labels
+    )
 
-    train_dataset = DogDataset(train_files, mode='train')
-    val_dataset = DogDataset(val_files, mode='val')
+    train_dataset = DogDataset(train_files, mode="train")
+    val_dataset = DogDataset(val_files, mode="val")
 
     n_classes = len(np.unique(train_val_labels))
 
@@ -132,25 +137,38 @@ def main():
 
     model = model.to(DEVICE)
 
-    history = train(train_dataset, val_dataset, model, epochs=NUM_EPOCHS, batch_size=BATCH_SIZE)
+    # history =
+    train(
+        train_dataset,
+        val_dataset,
+        model,
+        epochs=NUM_EPOCHS,
+        batch_size=BATCH_SIZE,
+    )
 
     torch.save(model, MODEL_DIR)
 
-    idxs = list(map(int, np.random.uniform(0,1000, 20)))
+    idxs = list(map(int, np.random.uniform(0, 1000, 20)))
     imgs = [val_dataset[id][0].unsqueeze(0) for id in idxs]
 
     probs_ims = predict(model, imgs)
 
-    label_encoder = pickle.load(open("label_encoder.pkl", 'rb'))
+    label_encoder = pickle.load(open("label_encoder.pkl", "rb"))
 
-    y_pred = np.argmax(probs_ims,-1)
+    y_pred = np.argmax(probs_ims, -1)
 
     actual_labels = [val_dataset[id][1] for id in idxs]
-    img_actual_labels = [val_dataset.label_encoder.inverse_transform([l])[0] for l in actual_labels]
+    img_actual_labels = [
+        val_dataset.label_encoder.inverse_transform([al])[0]
+        for al in actual_labels
+    ]
 
     preds_class = [label_encoder.classes_[i] for i in y_pred]
 
-    print("f1_score -",f1_score(img_actual_labels, preds_class, average='weighted'))
+    print(
+        "f1_score -",
+        f1_score(img_actual_labels, preds_class, average="weighted"),
+    )
 
 
 if __name__ == "__main__":
