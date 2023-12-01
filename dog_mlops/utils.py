@@ -1,3 +1,7 @@
+import os
+import random
+
+import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
@@ -66,7 +70,9 @@ def eval_epoch(model, val_loader, criterion):
     return val_loss, val_acc
 
 
-def train(train_files, val_files, model, epochs, batch_size):
+def train(
+    train_files, val_files, model, epochs, batch_size, learning_rate, momentum
+):
     train_loader = DataLoader(train_files, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_files, batch_size=batch_size, shuffle=False)
 
@@ -75,7 +81,9 @@ def train(train_files, val_files, model, epochs, batch_size):
     val_loss {v_loss:0.4f} train_acc {t_acc:0.4f} val_acc {v_acc:0.4f}"
 
     with tqdm(desc="epoch", total=epochs) as pbar_outer:
-        opt = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
+        opt = torch.optim.SGD(
+            model.parameters(), lr=learning_rate, momentum=momentum
+        )
         criterion = nn.CrossEntropyLoss()
         # Добавил шедулер
         # lr_sched = lr_scheduler.StepLR(opt, step_size=3, gamma=0.5)
@@ -101,6 +109,18 @@ def train(train_files, val_files, model, epochs, batch_size):
             )
 
     # return history
+
+
+def set_seed(seed) -> None:
+    np.random.seed(seed)
+    random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    # When running on the CuDNN backend, two further options must be set
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    # Set a fixed value for the hash seed
+    os.environ["PYTHONHASHSEED"] = str(seed)
 
 
 def predict(model, test_loader):

@@ -1,120 +1,31 @@
-import os
 import pickle
-import random
 from pathlib import Path
 
+import hydra
 import numpy as np
 import torch
 import torch.nn as nn
-from PIL import Image
+from omegaconf import DictConfig
 from sklearn.metrics import f1_score
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
-from torch.utils.data import Dataset
-from torchvision import transforms
 from torchvision.models import ResNet18_Weights, resnet18
 
-from utils import DEVICE, predict, train
+from DataClass import DogDataset
+from utils import DEVICE, predict, set_seed, train
 
-
-# Constants
-DATA_MODES = ["train", "val", "test"]
-RESCALE_SIZE = 224
-BATCH_SIZE = 64
-NUM_EPOCHS = 5
-MODEL_DIR = Path("dog_model")
 
 # Create train and validation datasets
-TRAIN_DIR = Path("data/train")
+# TRAIN_DIR = Path("data/train")
 
 
-# Define a DogDataset class
-class DogDataset(Dataset):
-    def __init__(self, files, mode):
-        self.files = sorted(files)
-        self.mode = mode
-        self.len_ = len(self.files)
-        self.label_encoder = LabelEncoder()
-
-        if self.mode not in DATA_MODES:
-            raise NameError(
-                f"{self.mode} is not correct; correct modes: {DATA_MODES}"
-            )
-
-        if self.mode != "test":
-            self.labels = [path.parent.name for path in self.files]
-            self.label_encoder.fit(self.labels)
-
-            with open("label_encoder.pkl", "wb") as le_dump_file:
-                pickle.dump(self.label_encoder, le_dump_file)
-
-    def __len__(self):
-        return self.len_
-
-    def load_sample(self, file):
-        image = Image.open(file)
-        image.load()
-        return image
-
-    def __getitem__(self, index):
-        train_transform = transforms.Compose(
-            [
-                transforms.ToTensor(),
-                transforms.RandomHorizontalFlip(p=0.5),
-                transforms.Normalize(
-                    [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
-                ),
-            ]
-        )
-
-        val_transform = transforms.Compose(
-            [
-                transforms.ToTensor(),
-                transforms.Normalize(
-                    [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
-                ),
-            ]
-        )
-
-        x = self.load_sample(self.files[index])
-        x = self._prepare_sample(x)
-        x = np.array(x / 255, dtype="float32")
-
-        if self.mode == "train":
-            x = train_transform(x)
-        else:
-            x = val_transform(x)
-
-        if self.mode == "test":
-            return x
-        else:
-            label = self.labels[index]
-            label_id = self.label_encoder.transform([label])
-            y = label_id.item()
-            return x, y
-
-    def _prepare_sample(self, image):
-        image = image.resize((RESCALE_SIZE, RESCALE_SIZE))
-        return np.array(image)
-
-
-def set_seed(seed) -> None:
-    np.random.seed(seed)
-    random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    # When running on the CuDNN backend, two further options must be set
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-    # Set a fixed value for the hash seed
-    os.environ["PYTHONHASHSEED"] = str(seed)
-
-
-def main():
+@hydra.main(config_path="../config", config_name="config", version_base="1.3")
+def main(cfg: DictConfig):
     # Check GPU availability
     set_seed(64)
 
-    train_val_files = sorted(list(TRAIN_DIR.rglob("*.jpeg")))
+    train_dir = Path(cfg.data.train_dir)
+
+    train_val_files = sorted(list(train_dir.rglob("*.jpeg")))
 
     train_val_labels = [path.parent.name for path in train_val_files]
     train_files, val_files = train_test_split(
@@ -142,11 +53,14 @@ def main():
         train_dataset,
         val_dataset,
         model,
-        epochs=NUM_EPOCHS,
-        batch_size=BATCH_SIZE,
+        epochs=cfg.training.epochs,
+        batch_size=cfg.training.batch_size,
+        learning_rate=cfg.training.learning_rate,
+        momentum=cfg.training.momentum,
     )
 
-    torch.save(model, MODEL_DIR)
+    model_dir = Path(cfg.training.model_dir)
+    torch.save(model, model_dir)
 
     idxs = list(map(int, np.random.uniform(0, 1000, 20)))
     imgs = [val_dataset[id][0].unsqueeze(0) for id in idxs]
