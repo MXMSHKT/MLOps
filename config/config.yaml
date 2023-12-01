@@ -1,0 +1,23 @@
+data:
+  name: cifar
+  train_dir: data/train
+  test_dir: data/test
+  test_size: 0.25
+  seed: 42
+
+model:
+  name: resnet18
+  weights: ResNet18_Weights
+  layers: 50
+  output_dim: 128
+
+training:
+  batch_size: 64
+  epochs: 5
+  learning_rate: 1e-3
+  momentum: 0.9
+  optimizer: SGD
+  model_dir: dog_model
+
+csv:
+  csv_dir: Dogs_predictions.csv

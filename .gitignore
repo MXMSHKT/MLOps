@@ -2,6 +2,7 @@
 /data
 /dog_env
 /dog_model
+/outputs
 /LabDL.ipynb
 /__pycache__
 /Dogs_predictions.csv
