@@ -1,39 +1,34 @@
-import pickle
 from pathlib import Path
 
 import hydra
-import numpy as np
-import pandas as pd
-import torch
-from omegaconf import DictConfig
-from torch.utils.data import DataLoader
+import pytorch_lightning as pl
 
-from Dog_train import DogDataset
-from utils import predict
+from dog_mlops.dataclass import DogDataModule, DogModel
 
 
 @hydra.main(config_path="../config", config_name="config", version_base="1.3")
-def infer(cfg: DictConfig):
-    test_dir = Path(cfg.data.test_dir)
-    model_dir = Path(cfg.training.model_dir)
-    csv_dir = Path(cfg.csv.csv_dir)
-    model = torch.load(model_dir)
+def infer(cfg):
+    # Getting best checkpoint name
+    best_model_name = (
+        Path(cfg.artifacts.checkpoint.dirpath) / cfg.loggers.experiment_name / "best.txt"
+    )
 
-    label_encoder = pickle.load(open("label_encoder.pkl", "rb"))
+    with open(best_model_name, "r") as f:
+        best_checkpoint_name = f.readline()
 
-    test_files = sorted(list(test_dir.rglob("*.jpeg")))
-    test_dataset = DogDataset(test_files, mode="test")
-    test_loader = DataLoader(test_dataset, shuffle=False, batch_size=64)
-    probs = predict(model, test_loader)
+    # Getting a torch-model
+    model = DogModel.load_from_checkpoint(best_checkpoint_name)
 
-    preds = label_encoder.inverse_transform(np.argmax(probs, axis=1))
-    test_filenames = [path.name for path in test_dataset.files]
+    dm = DogDataModule(cfg)
+    dm.setup(stage="predict")
+    test_loader = dm.test_dataloader()
 
-    df = pd.DataFrame()
-    df["Name"] = test_filenames
-    df["Expected"] = preds
-    df.to_csv(csv_dir, index=False)
-    df.head()
+    trainer = pl.Trainer(
+        accelerator=cfg.train.accelerator,
+        devices=cfg.train.devices,
+    )
+
+    trainer.test(model, test_loader)
 
 
 if __name__ == "__main__":

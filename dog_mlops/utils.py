@@ -1,5 +1,7 @@
 import os
 import random
+import subprocess
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -70,9 +72,7 @@ def eval_epoch(model, val_loader, criterion):
     return val_loss, val_acc
 
 
-def train(
-    train_files, val_files, model, epochs, batch_size, learning_rate, momentum
-):
+def train(train_files, val_files, model, epochs, batch_size, learning_rate, momentum):
     train_loader = DataLoader(train_files, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_files, batch_size=batch_size, shuffle=False)
 
@@ -81,17 +81,13 @@ def train(
     val_loss {v_loss:0.4f} train_acc {t_acc:0.4f} val_acc {v_acc:0.4f}"
 
     with tqdm(desc="epoch", total=epochs) as pbar_outer:
-        opt = torch.optim.SGD(
-            model.parameters(), lr=learning_rate, momentum=momentum
-        )
+        opt = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=momentum)
         criterion = nn.CrossEntropyLoss()
         # Добавил шедулер
         # lr_sched = lr_scheduler.StepLR(opt, step_size=3, gamma=0.5)
 
         for epoch in range(epochs):
-            train_loss, train_acc = fit_epoch(
-                model, train_loader, criterion, opt
-            )
+            train_loss, train_acc = fit_epoch(model, train_loader, criterion, opt)
             print("loss", train_loss)
 
             val_loss, val_acc = eval_epoch(model, val_loader, criterion)
@@ -135,3 +131,17 @@ def predict(model, test_loader):
 
     probs = nn.functional.softmax(torch.cat(logits), dim=-1).numpy()
     return probs
+
+
+def load_data():
+    datasets = {"train": "train", "test": "test"}
+
+    DATA_PATH = Path("data")
+
+    for name, dataset in datasets.items():
+        if not (DATA_PATH / name).exists():
+            cmd = f'{"dvc pull"}'
+
+            subprocess.run(cmd, shell=True)
+
+    return (os.path.join(DATA_PATH, key) for key in datasets)
