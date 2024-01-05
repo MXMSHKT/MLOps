@@ -16,4 +16,4 @@ __pycache__/
 /label_encoder.pkl
 /dog_data.zip
 /.logs
-lightning_logs
+/lightning_logs
