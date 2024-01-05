@@ -1,41 +1,41 @@
-import pickle
 from pathlib import Path
 
-import hydra
-import numpy as np
-import pandas as pd
-import torch
-from omegaconf import DictConfig
-from torch.utils.data import DataLoader
+# import numpy as np
+# import pandas as pd
+import pytorch_lightning as pl
 
-from Dog_train import DogDataset
-from utils import predict
+from dog_mlops.dataclass import DogDataModule
+from dog_mlops.model import DogModel
 
 
-@hydra.main(config_path="../config", config_name="config", version_base="1.3")
-def infer(cfg: DictConfig):
-    test_dir = Path(cfg.data.test_dir)
-    model_dir = Path(cfg.training.model_dir)
+def infer(cfg):
     csv_dir = Path(cfg.csv.csv_dir)
-    model = torch.load(model_dir)
+    pl.seed_everything(64)
+    model = DogModel(cfg)
 
-    label_encoder = pickle.load(open("label_encoder.pkl", "rb"))
+    model = DogModel.load_from_checkpoint(checkpoint_path="dog_model.ckpt")
+    model.eval()
+    # label_encoder = pickle.load(open("label_encoder.pkl", "rb"))
 
-    test_files = sorted(list(test_dir.rglob("*.jpeg")))
-    test_dataset = DogDataset(test_files, mode="test")
-    test_loader = DataLoader(test_dataset, shuffle=False, batch_size=64)
-    probs = predict(model, test_loader)
+    dm = DogDataModule(cfg)
+    dm.setup(stage="predict")
+    test_loader = dm.test_dataloader()
+    # test_dataset = dm.test_dataset
 
-    preds = label_encoder.inverse_transform(np.argmax(probs, axis=1))
-    test_filenames = [path.name for path in test_dataset.files]
+    trainer = pl.Trainer(
+        accelerator=cfg.train.accelerator,
+        devices=cfg.train.devices,
+    )
 
-    df = pd.DataFrame()
-    df["Name"] = test_filenames
-    df["Expected"] = preds
-    df.to_csv(csv_dir, index=False)
-    df.head()
+    predicts = trainer.test(model, test_loader)
+    # print(len(test_loader))
+    # print(len(test_dataset))
+    # print(test_dataset[0])  # Inspect the first sample
+    print(predicts)
+    print(csv_dir)
 
+    # preds = label_encoder.inverse_transform(np.argmax(predicts, axis=1))
+    # test_filenames = [path.name for path in test_dataset.files]
 
-if __name__ == "__main__":
-    infer()
+    # print(type(predicts))
     print("csv created")
