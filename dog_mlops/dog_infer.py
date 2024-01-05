@@ -1,36 +1,41 @@
 from pathlib import Path
 
-import hydra
+# import numpy as np
+# import pandas as pd
 import pytorch_lightning as pl
 
-from dog_mlops.dataclass import DogDataModule, DogModel
+from dog_mlops.dataclass import DogDataModule
+from dog_mlops.model import DogModel
 
 
-@hydra.main(config_path="../config", config_name="config", version_base="1.3")
 def infer(cfg):
-    # Getting best checkpoint name
-    best_model_name = (
-        Path(cfg.artifacts.checkpoint.dirpath) / cfg.loggers.experiment_name / "best.txt"
-    )
+    csv_dir = Path(cfg.csv.csv_dir)
+    pl.seed_everything(64)
+    model = DogModel(cfg)
 
-    with open(best_model_name, "r") as f:
-        best_checkpoint_name = f.readline()
-
-    # Getting a torch-model
-    model = DogModel.load_from_checkpoint(best_checkpoint_name)
+    model = DogModel.load_from_checkpoint(checkpoint_path="dog_model.ckpt")
+    model.eval()
+    # label_encoder = pickle.load(open("label_encoder.pkl", "rb"))
 
     dm = DogDataModule(cfg)
     dm.setup(stage="predict")
     test_loader = dm.test_dataloader()
+    # test_dataset = dm.test_dataset
 
     trainer = pl.Trainer(
         accelerator=cfg.train.accelerator,
         devices=cfg.train.devices,
     )
 
-    trainer.test(model, test_loader)
+    predicts = trainer.test(model, test_loader)
+    # print(len(test_loader))
+    # print(len(test_dataset))
+    # print(test_dataset[0])  # Inspect the first sample
+    print(predicts)
+    print(csv_dir)
 
+    # preds = label_encoder.inverse_transform(np.argmax(predicts, axis=1))
+    # test_filenames = [path.name for path in test_dataset.files]
 
-if __name__ == "__main__":
-    infer()
+    # print(type(predicts))
     print("csv created")

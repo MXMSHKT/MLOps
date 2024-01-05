@@ -3,16 +3,20 @@ data:
   n_classes: 50
   batch_size: 64
   val_size: 0.25
-  dataloader_num_workers: 1
+  dataloader_num_workers: 8
+  test_dir: data/test
+  train_dir: data/train
 
 model:
   name: microsoft/resnet-18
   weights: ResNet18_Weights
+  pretrained: True
   layers: 5
   output_dim: 128
+  save_model: dog_model.ckpt
 
 train:
-  epochs: 5
+  epochs: 1
   learning_rate: 1e-3
   weight_decay: 0.01
   step_size: 3
@@ -30,14 +34,14 @@ train:
   benchmark: false
   gradient_clip_val: 1.0
   profiler:
-  log_every_n_steps: 1
+  log_every_n_steps: 10
   detect_anomaly: false
   batch_size_finder: false
 
 artifacts:
   experiment_name: experiment
   checkpoint:
-    use: true
+    use: false
     dirpath: checkpoints
     filename: "{experiment_name}_{epoch:02d}-{val_loss:.4f}"
     monitor:
@@ -55,4 +59,4 @@ callbacks:
     lrs: 1e-3
 
 csv:
-  csv_dir: Dogs_predictions.csv
+  csv_dir: dogs_predictions.csv
