@@ -78,4 +78,4 @@ def train(cfg: DictConfig):
 
     trainer.fit(model, datamodule=dm)
 
-    trainer.save_checkpoint("dog_model.ckpt")
+    trainer.save_checkpoint(cfg.model.save_model_name)

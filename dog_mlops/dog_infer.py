@@ -5,7 +5,7 @@ from dog_mlops.model import DogModel
 
 
 def infer(cfg):
-    model = DogModel.load_from_checkpoint(checkpoint_path="dog_model.ckpt")
+    model = DogModel.load_from_checkpoint(checkpoint_path=cfg.model.save_model_name)
 
     dm = DogDataModule(cfg)
     dm.setup(stage="predict")
