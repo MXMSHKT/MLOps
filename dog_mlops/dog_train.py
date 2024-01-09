@@ -1,33 +1,21 @@
-import pickle
-from pathlib import Path
 import os
-import hydra
-import numpy as np
+
+import pytorch_lightning as pl
 import torch
-import torch.nn as nn
 from omegaconf import DictConfig
-from sklearn.metrics import f1_score
-from sklearn.model_selection import train_test_split
-from torchvision.models import ResNet18_Weights, resnet18
-import lightning.pytorch as pl
+
 from dog_mlops.dataclass import DogDataModule
-from utils import DEVICE, predict, set_seed, train
-from model import DogModel
+from dog_mlops.model import DogModel
 
 
 # Create train and validation datasets
 # TRAIN_DIR = Path("data/train")
 
 
-@hydra.main(config_path="../config", config_name="config", version_base="1.3")
-def main(cfg: DictConfig):
-    pl.seed_everything(42)
+def train(cfg: DictConfig):
+    pl.seed_everything(0)
     torch.set_float32_matmul_precision("medium")
-    dm = DogDataModule(
-        val_size=cfg.data.val_size,
-        dataloader_num_workers=cfg.data.dataloader_num_workers,
-        batch_size=cfg.data.batch_size,
-    )
+    dm = DogDataModule(cfg)
     model = DogModel(cfg)
 
     loggers = [
@@ -35,7 +23,7 @@ def main(cfg: DictConfig):
         pl.loggers.MLFlowLogger(
             experiment_name=cfg.artifacts.experiment_name,
             tracking_uri="file:./.logs/my-mlflow-logs",
-        )
+        ),
     ]
 
     callbacks = [
@@ -44,10 +32,10 @@ def main(cfg: DictConfig):
         pl.callbacks.RichModelSummary(max_depth=cfg.callbacks.model_summary.max_depth),
     ]
 
-    if cfg.callbacks.swa.use:
-        callbacks.append(
-            pl.callbacks.StochasticWeightAveraging(swa_lrs=cfg.callbacks.swa.lrs)
-        )
+    # if cfg.callbacks.swa.use:
+    #    callbacks.append(
+    #        pl.callbacks.StochasticWeightAveraging(swa_lrs=cfg.callbacks.swa.lrs)
+    #    )
 
     if cfg.artifacts.checkpoint.use:
         callbacks.append(
@@ -57,9 +45,10 @@ def main(cfg: DictConfig):
                 ),
                 filename=cfg.artifacts.checkpoint.filename,
                 monitor=cfg.artifacts.checkpoint.monitor,
+                mode=cfg.artifacts.checkpoint.mode,
                 save_top_k=cfg.artifacts.checkpoint.save_top_k,
-                every_n_train_steps=cfg.artifacts.checkpoint.every_n_train_steps,
                 every_n_epochs=cfg.artifacts.checkpoint.every_n_epochs,
+                verbose=True,
             )
         )
 
@@ -68,6 +57,7 @@ def main(cfg: DictConfig):
         devices=cfg.train.devices,
         precision=cfg.train.precision,
         accumulate_grad_batches=cfg.train.grad_accum_steps,
+        max_epochs=cfg.train.epochs,
         val_check_interval=cfg.train.val_check_interval,
         overfit_batches=cfg.train.overfit_batches,
         num_sanity_val_steps=cfg.train.num_sanity_val_steps,
@@ -88,6 +78,4 @@ def main(cfg: DictConfig):
 
     trainer.fit(model, datamodule=dm)
 
-
-if __name__ == "__main__":
-    main()
+    trainer.save_checkpoint("dog_model.ckpt")

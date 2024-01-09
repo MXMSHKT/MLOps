@@ -3,13 +3,14 @@ from pathlib import Path
 from typing import Optional
 
 import lightning.pytorch as pl
+import numpy as np
 import torch
 from PIL import Image
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from torch.utils.data import Dataset
 from torchvision import transforms
-import numpy as np
+
 from utils import load_data
 
 
@@ -25,9 +26,7 @@ class DogDataset(Dataset):
         self.label_encoder = LabelEncoder()
 
         if self.mode not in DATA_MODES:
-            raise NameError(
-                f"{self.mode} is not correct; correct modes: {DATA_MODES}"
-            )
+            raise NameError(f"{self.mode} is not correct; correct modes: {DATA_MODES}")
 
         if self.mode != "test":
             self.labels = [path.parent.name for path in self.files]
@@ -49,18 +48,14 @@ class DogDataset(Dataset):
             [
                 transforms.ToTensor(),
                 transforms.RandomHorizontalFlip(p=0.5),
-                transforms.Normalize(
-                    [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
-                ),
+                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
             ]
         )
 
         val_transform = transforms.Compose(
             [
                 transforms.ToTensor(),
-                transforms.Normalize(
-                    [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
-                ),
+                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
             ]
         )
 
@@ -80,7 +75,6 @@ class DogDataset(Dataset):
             label_id = self.label_encoder.transform([label])
             y = label_id.item()
             return x, y
-            
 
     def _prepare_sample(self, image):
         image = image.resize((RESCALE_SIZE, RESCALE_SIZE))
@@ -110,7 +104,9 @@ class DogDataModule(pl.LightningDataModule):
             print(f"Найдено файлов: {len(train_val_files)}")
 
             if len(train_val_files) == 0:
-                raise RuntimeError("Не найдено файлов для обработки. Проверьте путь к данным.")
+                raise RuntimeError(
+                    "Не найдено файлов для обработки. Проверьте путь к данным."
+                )
 
             train_files, val_files = train_test_split(
                 train_val_files, test_size=self.val_size, stratify=train_val_labels
