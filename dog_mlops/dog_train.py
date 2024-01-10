@@ -32,10 +32,10 @@ def train(cfg: DictConfig):
         pl.callbacks.RichModelSummary(max_depth=cfg.callbacks.model_summary.max_depth),
     ]
 
-    # if cfg.callbacks.swa.use:
-    #    callbacks.append(
-    #        pl.callbacks.StochasticWeightAveraging(swa_lrs=cfg.callbacks.swa.lrs)
-    #    )
+    if cfg.callbacks.swa.use:
+        callbacks.append(
+            pl.callbacks.StochasticWeightAveraging(swa_lrs=cfg.callbacks.swa.lrs)
+        )
 
     if cfg.artifacts.checkpoint.use:
         callbacks.append(

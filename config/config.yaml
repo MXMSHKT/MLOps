@@ -3,7 +3,9 @@ data:
   n_classes: 50
   batch_size: 64
   val_size: 0.25
-  dataloader_num_workers: 1
+  dataloader_num_workers: 8
+  test_dir: data/test
+  train_dir: data/train
 
 model:
   name: microsoft/resnet-18
@@ -39,6 +41,7 @@ export:
   export_path: "./outputs/export"
   export_name: "model"
   name_version: True
+  input_sample_shape: [64, 3, 7, 7]
 
 loggers:
   experiment_name: exp_name
@@ -54,12 +57,13 @@ loggers:
 artifacts:
   experiment_name: experiment
   checkpoint:
-    use: true
+    use: false
     dirpath: checkpoints
     filename: "{experiment_name}_{epoch:02d}-{val_loss:.4f}"
     monitor:
       - val_loss
       - val_accuracy
+    mode: max
     save_top_k: 3
     every_n_train_steps:
     every_n_epochs: 1
