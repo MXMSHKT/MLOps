@@ -4,10 +4,10 @@
 
 # Setup
 
-1. Клонировать репозиторий с ветки dev
-   https://github.com/MXMSHKT/MLOps.git
-2. Установка зависимостей с помощью poetry
-   poetry install
+1. Клонировать репозиторий с ветки dev \
+   `https://github.com/MXMSHKT/MLOps.git`
+2. Установка зависимостей с помощью poetry \
+   `poetry install`
 
-3. Запуск обучения, инференса и экспорта модели onnx :
+4. Запуск обучения, инференса и экспорта модели onnx \
    python3 commands.py 
